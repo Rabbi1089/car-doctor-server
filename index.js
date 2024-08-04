@@ -14,6 +14,7 @@ app.use(cors(
     origin : ['http://localhost:5173'],
     credentials : true
   }));
+
 app.use(express.json());
 app.use(cookieParser())
 
@@ -34,6 +35,8 @@ const client = new MongoClient(uri, {
   }
 });
 
+
+
 //middleware
 const logger = async(req , res , next ) => {
   console.log('called : ' , req.host , req.originalUrl)
@@ -43,7 +46,7 @@ const logger = async(req , res , next ) => {
 
 const verifyToken = async (req, res, next) => {
   const token = req.cookies?.token;
- // console.log('value of token mw', token)
+  console.log('value of token mw', token)
   if (!token) {
       return res.status(401).send({ message: 'unauthorized access' })
   }
@@ -69,13 +72,9 @@ async function run() {
              app.post('/jwt', async (req, res) => {
               const user = req.body;
               console.log(user);
-
               const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
                 expiresIn: '1h'
             });
-
-            
-  
               res
               .cookie('token', token, {
                       httpOnly: true,
@@ -85,8 +84,15 @@ async function run() {
           })
 
 
-     //service related api
+      //logout
+      app.post('/logout', async (req , res) => {
+        const user = req.body;
+        console.log('logging out ', user);
+        res.clearCookie('token', {maxAge : 0} ).send({success : true})
+      } )
 
+
+     //service related api
      app.get('/Services' , logger, async(req, res) => {
       const cursor = serviceCollection.find();
       const result = await cursor.toArray();
@@ -107,6 +113,7 @@ async function run() {
     })
 
     app.get('/bookings',logger, verifyToken, async (req, res ) => {
+       console.log('user email', req.user.email)
        console.log('ttttt token', req.cookies.token)
        if (req.query.email !== req.user.email) {
         return res.status(403).send({ message : 'forbidden access' })
